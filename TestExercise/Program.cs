@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using TestExercise.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<IDbService, DbService>();
 
 var app = builder.Build();
 
@@ -16,29 +20,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("api/groups/{id:int}", async (int id, IConfiguration configuration, IDbService db) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var result = await db.GetGroupDetailsByIdAsync(id);
+    return result is null
+        ? Results.NotFound($"Group with id:{id} does not exits")
+        : Results.Ok(result);
+});
 
-app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast")
-    .WithOpenApi();
-
+app.MapDelete("api/students/{id:int}", async (int id, IConfiguration configuration, IDbService db) =>
+{
+    var result = await db.RemoveStudentByIdAsync(id);
+    return (result) 
+        ? Results.NoContent()
+        : Results.NotFound($"Student with id:{id} does not exist"); //Results.Created for app.MapPost
+});
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
